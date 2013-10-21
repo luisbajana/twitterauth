@@ -1,0 +1,71 @@
+== Omniauth with devise
+
+
+Requirements
+
+- Devise installation process
+- After devise authentication, you should login
+- Add Omniauth as a gem
+gem 'omniauth'
+
+- Add a new file under initializers directory, the file may be named 'omniauth.rb'
+- Into this file add this lines:
+
+Rails.application.config.middleware.use OmniAuth::Builder do
+  provider :twitter, 'CONSUMER_KEY', 'CONSUMER_SECRET'
+  provider :facebook, 'APP_ID', 'APP_SECRET'
+  provider :linkedin, 'CONSUMER_KEY', 'CONSUMER_SECRET'
+end
+
+Replace your keys when you already set the application in some of the services above.
+
+
+- Then we need to handle the response, and here's devise is very flexible
+
+rails g nifty:scaffold authentication user_id:integer provider:string uid:string index create destroy
+
+rails g scaffold authentication user_id:integer provider:string uid:string
+
+One of the primary differences is that nifty:scaffold allows you to choose which controller actions to generate.
+
+rails g nifty:scaffold post name:string index new edit
+There are a few changes to the generated code as well, such as no XML format by default.
+
+It also offers support for HAML, Shoulda, and RSpec.
+
+rake db:migrate
+
+- Set the relationships in the models
+user.rb:
+has_many :authentications
+attr_accessible :email, :password, :password_confirmation, :remember_me
+
+authentication.rb
+belongs_to :user
+
+- In the authentications_controller.rb we need to re-write the create method, but in order to redirect actions to this controller I need to modify the routes.rb adding this line
+match '/auth/:provider/callback' => 'authentications#create'
+
+now authentications_controller.rb
+
+At the beggining with can test with this line (replacing all the method)
+
+def create
+    render :text => request.env["omniauth.auth"].to_yaml
+end
+
+The code above it's just for test, then I need to replace with the one below
+
+def create
+        auth = request.env["omniauth.auth"]
+        current_user.authentications.create(:provider => auth['provider'], :uid => auth['uid'])
+        flash[:notice] = "Authentication Succesfull"
+        redirect_to authentications_url
+end
+
+
+
+
+
+
+
